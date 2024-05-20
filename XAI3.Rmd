@@ -23,6 +23,8 @@ library(caret)
 library(mlbench)
 library(gridExtra)
 
+set.seed(4)
+
 ```
 
 
@@ -30,25 +32,20 @@ library(gridExtra)
 
 
 ```{r}
-# Cargar los datos
 datos = read.csv("./day.csv")
 
-# Crear variables de temporada
 datos$Winter = ifelse(datos$season == 1, 1, 0)
 datos$Spring = ifelse(datos$season == 2, 1, 0)
 datos$Summer = ifelse(datos$season == 3, 1, 0)
 datos$Fall = ifelse(datos$season == 4, 1, 0)
 
-# Crear variables de clima
 datos$Misty = ifelse(datos$weathersit == 2, 1, 0)
 datos$rain = ifelse(datos$weathersit == 3 | datos$weathersit == 4, 1, 0)
 
-# Ajustar las variables de humedad, velocidad del viento y temperatura
 datos$hum = datos$hum * 100
 datos$windspeed = datos$windspeed * 67
 datos$temp = datos$temp * (39 - (-8)) + (-8)
 
-# Crear variable de días desde 2011
 datos$days_since_2011 = 1:length(datos$dteday)
 
 ```
@@ -59,12 +56,12 @@ summary(rf)
 
 ```
 ```{r}
-days = partial(random_forest, pred.var = "days_since_2011", plot = TRUE, plot.engine = "ggplot2")
-temp = partial(random_forest, pred.var = "temp", plot = TRUE, plot.engine = "ggplot2")
-hum = partial(random_forest, pred.var = "hum", plot = TRUE, plot.engine = "ggplot2")
-wind = partial(random_forest, pred.var = "windspeed", plot = TRUE, plot.engine = "ggplot2")
+days = partial(rf, pred.var = "days_since_2011", plot = TRUE, plot.engine = "ggplot2")
+temp = partial(rf, pred.var = "temp", plot = TRUE, plot.engine = "ggplot2")
+hum = partial(rf, pred.var = "hum", plot = TRUE, plot.engine = "ggplot2")
+wind = partial(rf, pred.var = "windspeed", plot = TRUE, plot.engine = "ggplot2")
 
-grid.arrange(days_2011, temperature, humidity, windspeed, ncol = 2)
+grid.arrange(days, temp, hum, wind, ncol = 2)
 ```
 
 
@@ -86,6 +83,27 @@ ggplot(pdp_data, aes(x = temp, y = hum, fill = yhat)) +
   geom_density2d() +
 scale_fill_gradient(low = "yellow", high = "red")+
     theme_minimal()
+
+```
+
+# 3
+
+```{r}
+
+kc=read.csv("kc_house_data.csv")
+
+kc2 = kc %>% sample_n(600)
+rc = randomForest(price ~ bedrooms+bathrooms+sqft_living +sqft_lot + floors +  yr_built, data = kc2)
+summary(rc)
+```
+
+```{r}
+bed = partial(rc, pred.var = "bedrooms", plot = TRUE, plot.engine = "ggplot2")
+bath = partial(rc, pred.var = "bathrooms", plot = TRUE, plot.engine = "ggplot2")
+sqtf = partial(rc, pred.var = "sqft_living", plot = TRUE, plot.engine = "ggplot2")
+floor = partial(rc, pred.var = "floors", plot = TRUE, plot.engine = "ggplot2")
+
+grid.arrange(bed, bath, sqtf, floor, ncol = 2)
 
 ```
 
