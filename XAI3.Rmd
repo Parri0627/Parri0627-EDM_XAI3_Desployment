@@ -5,26 +5,105 @@ date: "2024-05-20"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+
+```{r, warning=FALSE}
+library(readr)
+library(pROC)
+library(dplyr)
+library(ggplot2)
+library(randomForest)
+library(plotly)
+library(partykit)
+library(pre)
+library(pdp)
+library(grid)
+library(gridExtra)
+library(fairness)
+library(caret)
+library(mlbench)
+library(gridExtra)
+
+set.seed(4)
+
 ```
 
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+# 1
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r cars}
-summary(cars)
+```{r}
+datos = read.csv("./day.csv")
+
+datos$Winter = ifelse(datos$season == 1, 1, 0)
+datos$Spring = ifelse(datos$season == 2, 1, 0)
+datos$Summer = ifelse(datos$season == 3, 1, 0)
+datos$Fall = ifelse(datos$season == 4, 1, 0)
+
+datos$Misty = ifelse(datos$weathersit == 2, 1, 0)
+datos$rain = ifelse(datos$weathersit == 3 | datos$weathersit == 4, 1, 0)
+
+datos$hum = datos$hum * 100
+datos$windspeed = datos$windspeed * 67
+datos$temp = datos$temp * (39 - (-8)) + (-8)
+
+datos$days_since_2011 = 1:length(datos$dteday)
+
 ```
 
-## Including Plots
+```{r}
+rf= randomForest(cnt ~ workingday + holiday + Spring + Summer + Fall + Misty + rain + temp + hum + windspeed + days_since_2011, data = datos)
+summary(rf)
 
-You can also embed plots, for example:
+```
+```{r}
+days = partial(rf, pred.var = "days_since_2011", plot = TRUE, plot.engine = "ggplot2")
+temp = partial(rf, pred.var = "temp", plot = TRUE, plot.engine = "ggplot2")
+hum = partial(rf, pred.var = "hum", plot = TRUE, plot.engine = "ggplot2")
+wind = partial(rf, pred.var = "windspeed", plot = TRUE, plot.engine = "ggplot2")
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+grid.arrange(days, temp, hum, wind, ncol = 2)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+# 2
+
+```{r}
+sample_data = datos %>% sample_n(500)
+
+random_forest_model = randomForest(cnt ~ workingday + holiday + Spring + Summer + Fall + Misty + rain + temp + hum + windspeed + days_since_2011, data = sample_data)
+
+pdp_data = partial(random_forest_model, pred.var = c("temp", "hum"))
+
+ggplot(pdp_data, aes(x = temp, y = hum, fill = yhat)) +
+    geom_tile(width = 3, height = 3)+
+    labs(title = "2D Partial Dependency Plot",
+         x = "Temperature (Celsius)",
+         y = "Humidity (%)",
+         fill = "Predicted Bikes Rented") +
+  geom_density2d() +
+scale_fill_gradient(low = "yellow", high = "red")+
+    theme_minimal()
+
+```
+
+# 3
+
+```{r}
+
+kc=read.csv("kc_house_data.csv")
+
+kc2 = kc %>% sample_n(600)
+rc = randomForest(price ~ bedrooms+bathrooms+sqft_living +sqft_lot + floors +  yr_built, data = kc2)
+summary(rc)
+```
+
+```{r}
+bed = partial(rc, pred.var = "bedrooms", plot = TRUE, plot.engine = "ggplot2")
+bath = partial(rc, pred.var = "bathrooms", plot = TRUE, plot.engine = "ggplot2")
+sqtf = partial(rc, pred.var = "sqft_living", plot = TRUE, plot.engine = "ggplot2")
+floor = partial(rc, pred.var = "floors", plot = TRUE, plot.engine = "ggplot2")
+
+grid.arrange(bed, bath, sqtf, floor, ncol = 2)
+
+```
+
